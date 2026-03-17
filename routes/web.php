@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/sites/{site}/updates/all-plugins', [UpdateController::class, 'triggerAllPluginUpdates'])->name('updates.all-plugins');
     Route::post('/sites/{site}/updates/core', [UpdateController::class, 'triggerCoreUpdate'])->name('updates.core');
     Route::get('/sites/{site}/updates/{jobId}', [UpdateController::class, 'showJob'])->name('updates.show');
+    Route::get('/sites/{site}/updates/{jobId}/progress', [UpdateController::class, 'jobProgress'])->name('updates.progress');
 
     // Global update actions
     Route::post('/updates/all-sites', [UpdateController::class, 'updateAllSites'])->name('updates.all-sites');

@@ -24,7 +24,10 @@ class WUM_Updater {
         require_once ABSPATH . 'wp-admin/includes/misc.php';
         require_once ABSPATH . 'wp-admin/includes/update.php';
 
-        // Force WordPress to refresh update transients so package URLs are available
+        // Delete cached transients and force a full refresh from wordpress.org
+        // Without this, wp_update_plugins() may return early if transient exists
+        delete_site_transient('update_plugins');
+        delete_site_transient('update_themes');
         wp_update_plugins();
         wp_update_themes();
 

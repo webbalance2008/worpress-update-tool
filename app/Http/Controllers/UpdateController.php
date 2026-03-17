@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\UpdateAllSitesJob;
 use App\Models\Site;
 use App\Services\UpdateService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -31,6 +32,14 @@ class UpdateController extends Controller
             $request->user(),
             $validated['installed_item_ids'],
         );
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'job_id' => $job->id,
+                'progress_url' => route('updates.progress', [$site, $job->id]),
+                'details_url' => route('updates.show', [$site, $job->id]),
+            ]);
+        }
 
         return redirect()
             ->route('sites.history', $site)
@@ -63,6 +72,39 @@ class UpdateController extends Controller
         return redirect()
             ->route('sites.history', $site)
             ->with('success', "Core update job #{$job->id} queued.");
+    }
+
+    /**
+     * Return job progress as JSON for polling.
+     */
+    public function jobProgress(Request $request, Site $site, int $jobId): JsonResponse
+    {
+        $this->authorize('view', $site);
+
+        $job = $site->updateJobs()->with('items')->findOrFail($jobId);
+
+        $items = $job->items->map(fn ($item) => [
+            'id' => $item->id,
+            'slug' => $item->slug,
+            'name' => $item->installedItem?->name ?? $item->slug,
+            'type' => $item->type,
+            'status' => $item->status,
+            'old_version' => $item->old_version,
+            'requested_version' => $item->requested_version,
+            'resulting_version' => $item->resulting_version,
+            'error_message' => $item->error_message,
+        ]);
+
+        $completedItems = $job->items->filter(
+            fn ($item) => in_array($item->status, ['completed', 'failed'])
+        )->count();
+
+        return response()->json([
+            'status' => $job->status->value,
+            'total_items' => $job->items->count(),
+            'completed_items' => $completedItems,
+            'items' => $items,
+        ]);
     }
 
     /**
