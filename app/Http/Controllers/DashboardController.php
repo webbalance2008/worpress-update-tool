@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Site;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -22,6 +23,8 @@ class DashboardController extends Controller
             'total_pending_updates' => $sites->sum('pending_updates_count'),
         ];
 
-        return view('dashboard.index', compact('sites', 'stats'));
+        $autoUpdatesEnabled = Cache::get("auto_updates_enabled_{$request->user()->id}", false);
+
+        return view('dashboard.index', compact('sites', 'stats', 'autoUpdatesEnabled'));
     }
 }

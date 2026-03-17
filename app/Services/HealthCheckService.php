@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Enums\HealthCheckStatus;
+use App\Mail\SiteDownAlert;
 use App\Models\HealthCheck;
 use App\Models\Site;
 use App\Models\UpdateJob;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class HealthCheckService
 {
@@ -60,6 +62,11 @@ class HealthCheckService
             if (! ($checkResult['passed'] ?? true)) {
                 $this->errorService->logHealthCheckError($site, $checkName, $checkResult, $updateJob?->id);
             }
+        }
+
+        // Send email alert if site is down
+        if ($status === HealthCheckStatus::Failed) {
+            $this->sendSiteDownAlert($site, $healthCheck);
         }
 
         return $healthCheck;
@@ -218,5 +225,27 @@ class HealthCheckService
             HealthCheckStatus::Failed => "{$passed}/{$total} checks passed. Critical checks failed — site may be down.",
             default => 'Health check pending.',
         };
+    }
+
+    /**
+     * Send email alert when a site is detected as down.
+     */
+    private function sendSiteDownAlert(Site $site, HealthCheck $healthCheck): void
+    {
+        try {
+            $recipient = $site->user?->email ?? config('mail.from.address');
+
+            Mail::to($recipient)->send(new SiteDownAlert($site, $healthCheck));
+
+            Log::info('Site down alert sent', [
+                'site_id' => $site->id,
+                'recipient' => $recipient,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send site down alert', [
+                'site_id' => $site->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
