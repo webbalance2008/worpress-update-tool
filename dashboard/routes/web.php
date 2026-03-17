@@ -1,0 +1,43 @@
+<?php
+
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SiteController;
+use App\Http\Controllers\UpdateController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+|
+| All routes require authentication via Laravel's standard auth middleware.
+| Use php artisan make:auth or Laravel Breeze/Jetstream for the auth scaffold.
+|
+*/
+
+Route::redirect('/', '/dashboard');
+
+Route::middleware(['auth'])->group(function () {
+
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Sites
+    Route::get('/sites/create', [SiteController::class, 'create'])->name('sites.create');
+    Route::post('/sites', [SiteController::class, 'store'])->name('sites.store');
+    Route::get('/sites/{site}', [SiteController::class, 'show'])->name('sites.show');
+    Route::delete('/sites/{site}', [SiteController::class, 'destroy'])->name('sites.destroy');
+
+    // Site sub-pages
+    Route::get('/sites/{site}/updates', [SiteController::class, 'updates'])->name('sites.updates');
+    Route::get('/sites/{site}/history', [SiteController::class, 'history'])->name('sites.history');
+    Route::get('/sites/{site}/health', [SiteController::class, 'healthChecks'])->name('sites.health');
+    Route::get('/sites/{site}/errors', [SiteController::class, 'errors'])->name('sites.errors');
+    Route::post('/sites/{site}/sync', [SiteController::class, 'sync'])->name('sites.sync');
+
+    // Updates
+    Route::post('/sites/{site}/updates/trigger', [UpdateController::class, 'triggerUpdate'])->name('updates.trigger');
+    Route::post('/sites/{site}/updates/all-plugins', [UpdateController::class, 'triggerAllPluginUpdates'])->name('updates.all-plugins');
+    Route::post('/sites/{site}/updates/core', [UpdateController::class, 'triggerCoreUpdate'])->name('updates.core');
+    Route::get('/sites/{site}/updates/{jobId}', [UpdateController::class, 'showJob'])->name('updates.show');
+});
