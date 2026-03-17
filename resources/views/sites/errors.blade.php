@@ -31,11 +31,11 @@
                 <div class="px-6 py-4 border-b border-white/[0.04]">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            @switch($error->severity)
+                            @switch($error->severity->value ?? $error->severity)
                                 @case('critical') <span class="wb-badge-red">Critical</span> @break
                                 @case('error') <span class="wb-badge-red">Error</span> @break
                                 @case('warning') <span class="wb-badge-orange">Warning</span> @break
-                                @default <span class="wb-badge-gray">{{ ucfirst($error->severity) }}</span>
+                                @default <span class="wb-badge-gray">{{ ucfirst($error->severity->value ?? $error->severity) }}</span>
                             @endswitch
                             <span class="text-xs text-white/80 font-mono">{{ $error->source }}</span>
                         </div>

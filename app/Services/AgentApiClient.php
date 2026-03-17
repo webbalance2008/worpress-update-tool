@@ -29,6 +29,7 @@ class AgentApiClient
         $headers = $this->hmacService->signRequest($site, strtoupper($method), $path, $body);
         $headers['Content-Type'] = 'application/json';
         $headers['Accept'] = 'application/json';
+        $headers['User-Agent'] = 'Mozilla/5.0 (compatible; WPUpdateManager/1.0; +https://updates.web-balance.co.uk)';
 
         try {
             /** @var Response $response */
