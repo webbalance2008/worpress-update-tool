@@ -39,6 +39,7 @@
                         <div>
                             <span class="text-sm text-white font-medium">Job #{{ $job->id }}</span>
                             <span class="text-sm text-white/80 ml-2">{{ $job->items->count() }} item(s)</span>
+                            <span class="text-xs text-white/50 ml-2 uppercase font-mono">{{ $job->type }}</span>
                         </div>
                         <div class="flex items-center gap-3">
                             @switch($job->status->value)
@@ -56,6 +57,29 @@
                             <span class="text-xs text-white/80 font-mono">Risk: {{ $job->riskAssessment->score }} ({{ ucfirst($job->riskAssessment->level->value) }})</span>
                         @endif
                     </div>
+                    {{-- Item details --}}
+                    @if($job->items->isNotEmpty())
+                        <div class="mt-3 space-y-1">
+                            @foreach($job->items as $item)
+                                <div class="flex items-center justify-between text-xs font-mono">
+                                    <div class="flex items-center gap-2">
+                                        @if($item->status === 'completed')
+                                            <span class="text-emerald-400">&#10003;</span>
+                                        @else
+                                            <span class="text-red-400">&#10007;</span>
+                                        @endif
+                                        <span class="text-white/90">{{ $item->installedItem->name ?? $item->slug }}</span>
+                                    </div>
+                                    <div class="text-white/60">
+                                        {{ $item->old_version ?? '?' }} &rarr; {{ $item->resulting_version ?? $item->requested_version }}
+                                        @if($item->error_message)
+                                            <span class="text-red-400 ml-2">{{ Str::limit($item->error_message, 40) }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </a>
             @endforeach
         </div>
