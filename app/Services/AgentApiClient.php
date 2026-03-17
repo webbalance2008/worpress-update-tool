@@ -22,7 +22,8 @@ class AgentApiClient
     public function sendToAgent(Site $site, string $method, string $endpoint, array $data = []): ?array
     {
         $url = rtrim($site->url, '/') . '/wp-json/wum-agent/v1/' . ltrim($endpoint, '/');
-        $path = '/wp-json/wum-agent/v1/' . ltrim($endpoint, '/');
+        // Sign with the REST route path (without /wp-json prefix) to match WordPress's $request->get_route()
+        $path = '/wum-agent/v1/' . ltrim($endpoint, '/');
         $body = ! empty($data) ? json_encode($data) : '';
 
         $headers = $this->hmacService->signRequest($site, strtoupper($method), $path, $body);
