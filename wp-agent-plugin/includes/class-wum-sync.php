@@ -44,6 +44,7 @@ class WUM_Sync {
             'php_version'     => phpversion(),
             'active_theme'    => wp_get_theme()->get('Name'),
             'installed_items' => $items,
+            'filesystem'      => WUM_Updater::check_filesystem(),
         ];
 
         WUM_API_Client::post('agent/sync', $data);

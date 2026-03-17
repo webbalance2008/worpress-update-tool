@@ -53,6 +53,36 @@
                 </div>
             </dl>
 
+            @php $fs = $site->meta['filesystem'] ?? null; @endphp
+            @if($fs)
+                <div class="mt-5 pt-5 border-t border-white/[0.04]">
+                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/80 mb-2">File Permissions</dt>
+                    @if($fs['all_writable'] ?? false)
+                        <dd class="flex items-center gap-1.5">
+                            <span class="wb-badge-green">Writable</span>
+                            <span class="text-xs text-white/80">All directories OK</span>
+                        </dd>
+                    @else
+                        <dd>
+                            <span class="wb-badge-red">Permission Issue</span>
+                            <ul class="mt-2 space-y-1">
+                                @foreach(['plugins', 'themes', 'wp_content', 'upgrade', 'wp_root'] as $dir)
+                                    @if(isset($fs[$dir]) && !($fs[$dir]['writable'] ?? true))
+                                        <li class="text-xs text-red-400 font-mono">{{ $dir }}: not writable (owner: {{ $fs[$dir]['owner'] ?? '?' }})</li>
+                                    @endif
+                                @endforeach
+                            </ul>
+                            @if(isset($fs['web_user']))
+                                <p class="text-xs text-white/80 mt-2">Web server runs as: <span class="font-mono">{{ $fs['web_user'] }}</span></p>
+                            @endif
+                            @if(($fs['fs_method'] ?? 'not set') === 'not set')
+                                <p class="text-xs text-red-400 mt-1">FS_METHOD not set in wp-config.php</p>
+                            @endif
+                        </dd>
+                    @endif
+                </div>
+            @endif
+
             @if($site->status->value === 'pending' && $site->registration_token)
                 <div class="mt-6 p-4 rounded-md bg-wb-teal/10 border border-wb-teal/30">
                     <p class="wb-label text-wb-teal mb-2">Registration Token</p>

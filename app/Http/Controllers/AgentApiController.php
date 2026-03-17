@@ -88,13 +88,20 @@ class AgentApiController extends Controller
             'installed_items.*.is_active' => 'nullable|boolean',
             'installed_items.*.auto_update_enabled' => 'nullable|boolean',
             'installed_items.*.tested_wp_version' => 'nullable|string',
+            'filesystem' => 'nullable|array',
         ]);
 
-        // Update site metadata
+        // Update site metadata (store filesystem info in meta)
+        $meta = $site->meta ?? [];
+        if (! empty($validated['filesystem'])) {
+            $meta['filesystem'] = $validated['filesystem'];
+        }
+
         $site->update([
             'wp_version' => $validated['wp_version'] ?? $site->wp_version,
             'php_version' => $validated['php_version'] ?? $site->php_version,
             'active_theme' => $validated['active_theme'] ?? $site->active_theme,
+            'meta' => $meta,
         ]);
 
         $count = $this->siteService->syncInstalledItems($site, $validated['installed_items']);

@@ -90,6 +90,48 @@ final class WUM_Agent {
                 'connected'     => false,
             ]);
         }
+
+        // Ensure FS_METHOD is set to 'direct' so updates don't require FTP credentials
+        self::ensure_fs_method();
+    }
+
+    /**
+     * Add FS_METHOD direct to wp-config.php if not already defined.
+     */
+    private static function ensure_fs_method(): void {
+        if (defined('FS_METHOD')) {
+            return;
+        }
+
+        $config_path = ABSPATH . 'wp-config.php';
+
+        if (! file_exists($config_path) || ! is_writable($config_path)) {
+            return;
+        }
+
+        $config_content = file_get_contents($config_path);
+
+        // Check if FS_METHOD is already defined anywhere in the file
+        if (strpos($config_content, 'FS_METHOD') !== false) {
+            return;
+        }
+
+        // Insert before the "That's all, stop editing!" comment or the require line
+        $anchors = [
+            "/* That's all, stop editing!",
+            "/** Absolute path to the WordPress directory",
+            "require_once ABSPATH",
+        ];
+
+        foreach ($anchors as $anchor) {
+            $pos = strpos($config_content, $anchor);
+            if ($pos !== false) {
+                $insert = "/** Allow direct filesystem access for updates */\ndefine('FS_METHOD', 'direct');\n\n";
+                $config_content = substr_replace($config_content, $insert, $pos, 0);
+                file_put_contents($config_path, $config_content);
+                return;
+            }
+        }
     }
 
     public function deactivate(): void {

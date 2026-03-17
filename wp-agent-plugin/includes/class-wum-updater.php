@@ -24,6 +24,9 @@ class WUM_Updater {
         require_once ABSPATH . 'wp-admin/includes/misc.php';
         require_once ABSPATH . 'wp-admin/includes/update.php';
 
+        // Attempt to fix directory permissions before running updates
+        self::fix_directory_permissions();
+
         $results = [];
 
         foreach ($items as $item) {
@@ -227,5 +230,66 @@ class WUM_Updater {
             'update_job_id' => $update_job_id,
             'items'         => $results,
         ]);
+    }
+
+    /**
+     * Attempt to fix directory permissions so the web server can write updates.
+     * Sets directories to 755 and files to 644 in key update paths.
+     */
+    private static function fix_directory_permissions(): void {
+        $dirs = [
+            WP_CONTENT_DIR,
+            WP_PLUGIN_DIR,
+            get_theme_root(),
+            WP_CONTENT_DIR . '/upgrade',
+        ];
+
+        // Ensure the upgrade temp directory exists
+        if (! is_dir(WP_CONTENT_DIR . '/upgrade')) {
+            @mkdir(WP_CONTENT_DIR . '/upgrade', 0755, true);
+        }
+
+        foreach ($dirs as $dir) {
+            if (is_dir($dir) && ! is_writable($dir)) {
+                @chmod($dir, 0755);
+            }
+        }
+    }
+
+    /**
+     * Check filesystem writability for key directories.
+     * Returns an array of paths and their writable status.
+     */
+    public static function check_filesystem(): array {
+        $paths = [
+            'wp_content'  => WP_CONTENT_DIR,
+            'plugins'     => WP_PLUGIN_DIR,
+            'themes'      => get_theme_root(),
+            'upgrade'     => WP_CONTENT_DIR . '/upgrade',
+            'wp_root'     => ABSPATH,
+        ];
+
+        $results = [];
+        foreach ($paths as $key => $path) {
+            $results[$key] = [
+                'path'     => $path,
+                'exists'   => file_exists($path),
+                'writable' => is_writable($path),
+                'owner'    => function_exists('posix_getpwuid') && file_exists($path)
+                    ? (posix_getpwuid(fileowner($path))['name'] ?? 'unknown')
+                    : 'unknown',
+            ];
+        }
+
+        $results['fs_method']  = defined('FS_METHOD') ? FS_METHOD : 'not set';
+        $results['web_user']   = function_exists('posix_getpwuid')
+            ? (posix_getpwuid(posix_geteuid())['name'] ?? 'unknown')
+            : 'unknown';
+        $results['all_writable'] = ! in_array(false, array_column(
+            array_filter($results, 'is_array'),
+            'writable'
+        ), true);
+
+        return $results;
     }
 }
