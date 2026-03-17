@@ -93,12 +93,31 @@ class WUM_Updater {
         }
 
         if ($result === false) {
+            $messages = $skin->get_upgrade_messages();
+            $skin_errors = $skin->get_errors();
+            $error_detail = '';
+
+            if ($skin_errors && $skin_errors->has_errors()) {
+                $error_detail = implode(' ', $skin_errors->get_error_messages());
+            } elseif (! empty($messages)) {
+                $error_detail = implode(' ', $messages);
+            }
+
+            // Check if the update package URL is missing (common for premium plugins)
+            $update_data = get_site_transient('update_plugins');
+            $has_package = isset($update_data->response[$plugin_file]->package)
+                && ! empty($update_data->response[$plugin_file]->package);
+
+            if (! $has_package) {
+                $error_detail = 'No download package available. This is usually a premium plugin that requires an active license key on this site. ' . $error_detail;
+            }
+
             return [
                 'old_version'       => $old_version,
                 'resulting_version' => $new_version,
                 'status'            => 'failed',
-                'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
-                'error_message'     => 'Upgrade returned false. Check file permissions.',
+                'raw_result'        => ['messages' => $messages],
+                'error_message'     => $error_detail ?: 'Upgrade returned false. Check file permissions.',
             ];
         }
 
