@@ -24,6 +24,10 @@ class WUM_Updater {
         require_once ABSPATH . 'wp-admin/includes/misc.php';
         require_once ABSPATH . 'wp-admin/includes/update.php';
 
+        // Force WordPress to refresh update transients so package URLs are available
+        wp_update_plugins();
+        wp_update_themes();
+
         // Attempt to fix directory permissions before running updates
         self::fix_directory_permissions();
 
