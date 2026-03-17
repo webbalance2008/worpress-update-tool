@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="font-sans text-xl font-medium text-white">{{ $site->name }}</h1>
-            <p class="font-mono text-xs text-white/30 mt-0.5">Available Updates</p>
+            <p class="font-mono text-xs text-white/80 mt-0.5">Available Updates</p>
         </div>
     </div>
 
@@ -20,7 +20,7 @@
 
     @if($pendingUpdates->isEmpty())
         <div class="wb-card p-12 text-center">
-            <p class="text-white/30 text-sm">Everything is up to date.</p>
+            <p class="text-white/80 text-sm">Everything is up to date.</p>
         </div>
     @else
         <form method="POST" action="{{ route('updates.trigger', $site) }}">
@@ -43,7 +43,7 @@
                                 <div class="text-sm text-white">{{ $item->name }}</div>
                                 <div class="text-xs text-white/20 font-mono">{{ $item->slug }}</div>
                             </div>
-                            <div class="text-sm font-mono text-white/40">
+                            <div class="text-sm font-mono text-white/80">
                                 {{ $item->current_version }} &rarr; <span class="text-white">{{ $item->available_version }}</span>
                             </div>
                         </label>

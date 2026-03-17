@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="font-sans text-xl font-medium text-white">{{ $site->name }}</h1>
-            <p class="font-mono text-xs text-white/30 mt-0.5">{{ $site->url }}</p>
+            <p class="font-mono text-xs text-white/80 mt-0.5">{{ $site->url }}</p>
         </div>
         <div class="flex items-center gap-3">
             @switch($site->status->value)
@@ -36,19 +36,19 @@
             <h3 class="wb-label mb-4">Site Info</h3>
             <dl class="space-y-4">
                 <div>
-                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/30">WordPress Version</dt>
+                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/80">WordPress Version</dt>
                     <dd class="text-sm text-white mt-0.5">{{ $site->wp_version ?? 'Unknown' }}</dd>
                 </div>
                 <div>
-                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/30">PHP Version</dt>
+                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/80">PHP Version</dt>
                     <dd class="text-sm text-white mt-0.5">{{ $site->php_version ?? 'Unknown' }}</dd>
                 </div>
                 <div>
-                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/30">Active Theme</dt>
+                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/80">Active Theme</dt>
                     <dd class="text-sm text-white mt-0.5">{{ $site->active_theme ?? 'Unknown' }}</dd>
                 </div>
                 <div>
-                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/30">Last Seen</dt>
+                    <dt class="font-mono text-[0.625rem] uppercase tracking-[0.12em] text-white/80">Last Seen</dt>
                     <dd class="text-sm text-white mt-0.5">{{ $site->last_seen_at?->diffForHumans() ?? 'Never' }}</dd>
                 </div>
             </dl>
@@ -68,13 +68,13 @@
                 Pending Updates ({{ $pendingUpdates->count() }})
             </h3>
             @if($pendingUpdates->isEmpty())
-                <p class="text-sm text-white/30">All up to date.</p>
+                <p class="text-sm text-white/80">All up to date.</p>
             @else
                 <ul class="space-y-3">
                     @foreach($pendingUpdates->take(8) as $item)
                         <li class="flex justify-between items-center">
                             <span class="text-sm text-white/80">{{ $item->name }}</span>
-                            <span class="font-mono text-[0.625rem] text-white/30">{{ $item->current_version }} &rarr; {{ $item->available_version }}</span>
+                            <span class="font-mono text-[0.625rem] text-white/80">{{ $item->current_version }} &rarr; {{ $item->available_version }}</span>
                         </li>
                     @endforeach
                 </ul>
@@ -90,7 +90,7 @@
         <div class="wb-card p-6">
             <h3 class="wb-label mb-4">Recent Jobs</h3>
             @if($recentJobs->isEmpty())
-                <p class="text-sm text-white/30">No update history yet.</p>
+                <p class="text-sm text-white/80">No update history yet.</p>
             @else
                 <ul class="space-y-3">
                     @foreach($recentJobs->take(5) as $job)
@@ -98,8 +98,8 @@
                             <a href="{{ route('updates.show', [$site, $job->id]) }}" class="text-sm text-wb-teal hover:underline">
                                 Job #{{ $job->id }}
                             </a>
-                            <span class="text-sm text-white/40"> &mdash; {{ $job->status->label() }}</span>
-                            <span class="block text-xs text-white/20 font-mono mt-0.5">{{ $job->created_at->diffForHumans() }}</span>
+                            <span class="text-sm text-white/80"> &mdash; {{ $job->status->label() }}</span>
+                            <span class="block text-xs text-white/80 font-mono mt-0.5">{{ $job->created_at->diffForHumans() }}</span>
                         </li>
                     @endforeach
                 </ul>
@@ -114,7 +114,7 @@
                         @case('failed') <span class="wb-badge-red">Failed</span> @break
                         @default <span class="wb-badge-gray">{{ $latestHealthCheck->status->label() }}</span>
                     @endswitch
-                    <span class="text-xs text-white/20 font-mono ml-2">{{ $latestHealthCheck->created_at->diffForHumans() }}</span>
+                    <span class="text-xs text-white/80 font-mono ml-2">{{ $latestHealthCheck->created_at->diffForHumans() }}</span>
                 </div>
             @endif
         </div>

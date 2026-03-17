@@ -22,7 +22,7 @@
             </div>
         </form>
 
-        <p class="mt-4 text-sm text-white/30 text-center font-body">
+        <p class="mt-4 text-sm text-white/80 text-center font-body">
             After creating the site, you'll receive a registration token to configure in the WordPress agent plugin.
         </p>
     </div>

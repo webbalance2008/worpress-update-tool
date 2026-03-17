@@ -15,7 +15,7 @@
         @apply bg-wb-card border border-white/[0.08] rounded-lg;
     }
     .wb-label {
-        @apply font-mono text-[0.6875rem] uppercase tracking-[0.15em] text-white/60;
+        @apply font-mono text-[0.6875rem] uppercase tracking-[0.15em] text-white/80;
     }
     .wb-metric {
         @apply font-sans text-3xl font-light text-white;
@@ -24,7 +24,7 @@
         @apply text-wb-teal;
     }
     .wb-nav-link {
-        @apply font-mono text-[0.75rem] uppercase tracking-[0.15em] text-white/60 px-5 py-3 border-b-2 border-transparent transition-colors duration-200;
+        @apply font-mono text-[0.75rem] uppercase tracking-[0.15em] text-white/80 px-5 py-3 border-b-2 border-transparent transition-colors duration-200;
     }
     .wb-nav-link:hover, .wb-nav-link.active {
         @apply text-wb-teal border-wb-teal;
@@ -36,13 +36,13 @@
         @apply wb-btn bg-wb-teal text-wb-bg hover:bg-wb-teal/90;
     }
     .wb-btn-secondary {
-        @apply wb-btn border border-white/20 text-white/80 hover:border-wb-teal hover:text-wb-teal;
+        @apply wb-btn border border-white/20 text-white hover:border-wb-teal hover:text-wb-teal;
     }
     .wb-input {
         @apply bg-wb-card border border-white/[0.08] text-white font-mono text-[13px] px-3.5 py-2.5 rounded-md focus:border-wb-teal/50 focus:ring-wb-teal/20 placeholder-white/30;
     }
     .wb-table-header {
-        @apply font-mono text-[0.6875rem] uppercase tracking-[0.15em] text-white/40 text-left;
+        @apply font-mono text-[0.75rem] uppercase tracking-[0.15em] text-white/70 text-left;
     }
     .wb-divider {
         @apply border-white/[0.04];
@@ -60,7 +60,7 @@
         @apply wb-badge bg-red-500/15 text-red-400 border border-red-500/30;
     }
     .wb-badge-gray {
-        @apply wb-badge bg-white/10 text-white/50 border border-white/20;
+        @apply wb-badge bg-white/10 text-white/80 border border-white/20;
     }
     .wb-badge-orange {
         @apply wb-badge bg-orange-500/15 text-orange-400 border border-orange-500/30;

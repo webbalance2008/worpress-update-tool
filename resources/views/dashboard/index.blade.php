@@ -28,7 +28,7 @@
 
         @if($sites->isEmpty())
             <div class="p-12 text-center">
-                <p class="text-white/40 font-body text-sm">No sites connected yet.</p>
+                <p class="text-white/80 font-body text-sm">No sites connected yet.</p>
                 <a href="{{ route('sites.create') }}" class="text-wb-teal text-sm mt-2 inline-block hover:underline">Add your first site</a>
             </div>
         @else
@@ -46,7 +46,7 @@
                         <tr class="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer" onclick="window.location='{{ route('sites.show', $site) }}'">
                             <td class="px-6 py-3">
                                 <div class="text-sm text-white font-medium">{{ $site->name }}</div>
-                                <div class="text-xs text-white/30 font-mono">{{ $site->url }}</div>
+                                <div class="text-sm text-white/70 font-mono">{{ $site->url }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 @switch($site->status->value)
@@ -60,11 +60,11 @@
                                 @if($site->pending_updates_count > 0)
                                     <span class="wb-badge-orange">{{ $site->pending_updates_count }} pending</span>
                                 @else
-                                    <span class="text-xs text-white/30 font-mono">Up to date</span>
+                                    <span class="text-sm text-white/80 font-mono">Up to date</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <span class="text-xs text-white/30 font-mono">
+                                <span class="text-sm text-white/80 font-mono">
                                     @if($site->last_seen_at)
                                         {{ $site->last_seen_at->diffForHumans() }}
                                     @else
