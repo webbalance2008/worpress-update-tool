@@ -36,6 +36,13 @@ class WUM_REST_API {
             'callback'            => [$this, 'installed_items'],
             'permission_callback' => [$this, 'verify_hmac'],
         ]);
+
+        // Self-update the agent plugin — called by dashboard
+        register_rest_route(self::NAMESPACE, '/self-update', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'self_update'],
+            'permission_callback' => [$this, 'verify_hmac'],
+        ]);
     }
 
     /**
@@ -182,6 +189,60 @@ class WUM_REST_API {
         }
 
         return $items;
+    }
+
+    /**
+     * Self-update the agent plugin from a zip provided by the dashboard.
+     */
+    public function self_update(WP_REST_Request $request): WP_REST_Response {
+        $download_url = $request->get_param('download_url');
+
+        if (empty($download_url)) {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => ['code' => 'missing_url', 'message' => 'download_url is required.'],
+            ], 400);
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+        // Download the zip to a temp file
+        $temp_file = download_url($download_url, 60);
+
+        if (is_wp_error($temp_file)) {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => ['code' => 'download_failed', 'message' => $temp_file->get_error_message()],
+            ], 500);
+        }
+
+        $plugin_dir = WP_PLUGIN_DIR . '/wum-agent';
+
+        // Extract zip over the existing plugin directory
+        $unzip_result = unzip_file($temp_file, $plugin_dir);
+        @unlink($temp_file);
+
+        if (is_wp_error($unzip_result)) {
+            return new WP_REST_Response([
+                'success' => false,
+                'error'   => ['code' => 'unzip_failed', 'message' => $unzip_result->get_error_message()],
+            ], 500);
+        }
+
+        // Read the new version from the updated plugin file
+        $new_version = WUM_AGENT_VERSION;
+        $plugin_file = $plugin_dir . '/wum-agent.php';
+        if (file_exists($plugin_file)) {
+            $plugin_data = get_file_data($plugin_file, ['Version' => 'Version']);
+            $new_version = $plugin_data['Version'] ?? WUM_AGENT_VERSION;
+        }
+
+        return new WP_REST_Response([
+            'success'     => true,
+            'new_version' => $new_version,
+            'message'     => 'Agent plugin updated successfully.',
+        ], 200);
     }
 
     private static function get_core_item(): array {

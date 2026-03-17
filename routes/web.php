@@ -30,6 +30,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/sites/{site}/health', [SiteController::class, 'healthChecks'])->name('sites.health');
     Route::get('/sites/{site}/errors', [SiteController::class, 'errors'])->name('sites.errors');
     Route::post('/sites/{site}/sync', [SiteController::class, 'sync'])->name('sites.sync');
+    Route::post('/sites/{site}/push-plugin-update', [SiteController::class, 'pushPluginUpdate'])->name('sites.push-plugin-update');
+    Route::post('/sites/push-plugin-update-all', [SiteController::class, 'pushPluginUpdateAll'])->name('sites.push-plugin-update-all');
 
     // Updates
     Route::post('/sites/{site}/updates/trigger', [UpdateController::class, 'triggerUpdate'])->name('updates.trigger');
@@ -41,5 +43,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/updates/all-sites', [UpdateController::class, 'updateAllSites'])->name('updates.all-sites');
     Route::post('/updates/toggle-auto', [UpdateController::class, 'toggleAutoUpdates'])->name('updates.toggle-auto');
 });
+
+// Agent plugin download (no auth — agents download this via URL)
+Route::get('/agent-plugin/download', [SiteController::class, 'downloadAgentPlugin'])->name('agent-plugin.download');
 
 require __DIR__.'/auth.php';

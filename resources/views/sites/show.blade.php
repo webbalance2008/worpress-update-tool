@@ -12,7 +12,11 @@
                 @case('disconnected') <span class="wb-badge-gray">Disconnected</span> @break
                 @case('error') <span class="wb-badge-red">Error</span> @break
             @endswitch
-            <form method="POST" action="{{ route('sites.sync', $site) }}">
+            <form method="POST" action="{{ route('sites.push-plugin-update', $site) }}" class="inline">
+                @csrf
+                <button type="submit" class="wb-btn-secondary">Push Plugin Update</button>
+            </form>
+            <form method="POST" action="{{ route('sites.sync', $site) }}" class="inline">
                 @csrf
                 <button type="submit" class="wb-btn-secondary">Sync Now</button>
             </form>

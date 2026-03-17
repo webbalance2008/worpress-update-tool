@@ -80,4 +80,14 @@ class AgentApiClient
     {
         return $this->sendToAgent($site, 'POST', 'status', ['check' => 'status']);
     }
+
+    /**
+     * Tell the agent to self-update from a zip URL.
+     */
+    public function pushPluginUpdate(Site $site, string $downloadUrl): ?array
+    {
+        return $this->sendToAgent($site, 'POST', 'self-update', [
+            'download_url' => $downloadUrl,
+        ]);
+    }
 }

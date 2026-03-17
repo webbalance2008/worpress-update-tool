@@ -5,13 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CreateSiteRequest;
 use App\Jobs\SyncSiteJob;
 use App\Models\Site;
+use App\Services\AgentApiClient;
 use App\Services\SiteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use ZipArchive;
 
 class SiteController extends Controller
 {
     public function __construct(
         private SiteService $siteService,
+        private AgentApiClient $agentApiClient,
     ) {}
 
     public function show(Request $request, Site $site)
@@ -111,6 +115,71 @@ class SiteController extends Controller
         SyncSiteJob::dispatch($site)->onQueue('sync');
 
         return back()->with('success', 'Sync job queued.');
+    }
+
+    public function pushPluginUpdate(Request $request, Site $site)
+    {
+        $this->authorize('update', $site);
+
+        $downloadUrl = route('agent-plugin.download');
+        $result = $this->agentApiClient->pushPluginUpdate($site, $downloadUrl);
+
+        if ($result && ($result['success'] ?? false)) {
+            $version = $result['new_version'] ?? 'latest';
+            return back()->with('success', "Agent plugin updated to {$version}.");
+        }
+
+        return back()->with('error', 'Failed to push plugin update. Check site connectivity.');
+    }
+
+    public function pushPluginUpdateAll(Request $request)
+    {
+        $sites = Site::where('user_id', $request->user()->id)
+            ->where('status', 'connected')
+            ->get();
+
+        $downloadUrl = route('agent-plugin.download');
+        $success = 0;
+        $failed = 0;
+
+        foreach ($sites as $site) {
+            $result = $this->agentApiClient->pushPluginUpdate($site, $downloadUrl);
+            if ($result && ($result['success'] ?? false)) {
+                $success++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return back()->with('success', "Plugin update pushed to {$success} site(s)" . ($failed ? ", {$failed} failed." : '.'));
+    }
+
+    public function downloadAgentPlugin()
+    {
+        $pluginDir = base_path('wp-agent-plugin');
+        $zipPath = storage_path('app/wum-agent-plugin.zip');
+
+        // Build a fresh zip
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Could not create plugin zip.');
+        }
+
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($pluginDir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+
+        foreach ($files as $file) {
+            if ($file->isFile()) {
+                $relativePath = str_replace($pluginDir . '/', '', $file->getPathname());
+                $zip->addFile($file->getPathname(), $relativePath);
+            }
+        }
+
+        $zip->close();
+
+        return response()->download($zipPath, 'wum-agent-plugin.zip');
     }
 
     public function destroy(Request $request, Site $site)
