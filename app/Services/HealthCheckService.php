@@ -80,7 +80,9 @@ class HealthCheckService
         $startTime = microtime(true);
 
         try {
-            $response = Http::timeout(15)->connectTimeout(5)->get($url);
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (compatible; WPUpdateManager/1.0; +https://updates.web-balance.co.uk)',
+            ])->timeout(15)->connectTimeout(5)->get($url);
 
             $responseTime = round((microtime(true) - $startTime) * 1000);
             $body = $response->body();
