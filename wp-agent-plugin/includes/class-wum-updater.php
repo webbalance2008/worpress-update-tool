@@ -67,6 +67,12 @@ class WUM_Updater {
 
         $old_version = self::get_plugin_version($plugin_file);
 
+        // Fix permissions on this plugin's directory recursively
+        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
+        if (dirname($plugin_file) !== '.' && is_dir($plugin_dir)) {
+            self::chmod_recursive($plugin_dir);
+        }
+
         $skin     = new WP_Ajax_Upgrader_Skin();
         $upgrader = new Plugin_Upgrader($skin);
         $result   = $upgrader->upgrade($plugin_file);
@@ -118,6 +124,12 @@ class WUM_Updater {
         }
 
         $old_version = $theme->get('Version');
+
+        // Fix permissions on this theme's directory recursively
+        $theme_dir = get_theme_root() . '/' . $item['slug'];
+        if (is_dir($theme_dir)) {
+            self::chmod_recursive($theme_dir);
+        }
 
         $skin     = new WP_Ajax_Upgrader_Skin();
         $upgrader = new Theme_Upgrader($skin);
@@ -233,8 +245,7 @@ class WUM_Updater {
     }
 
     /**
-     * Attempt to fix directory permissions so the web server can write updates.
-     * Sets directories to 755 and files to 644 in key update paths.
+     * Attempt to fix top-level directory permissions for update paths.
      */
     private static function fix_directory_permissions(): void {
         $dirs = [
@@ -252,6 +263,30 @@ class WUM_Updater {
         foreach ($dirs as $dir) {
             if (is_dir($dir) && ! is_writable($dir)) {
                 @chmod($dir, 0755);
+            }
+        }
+    }
+
+    /**
+     * Recursively set permissions: 755 for directories, 644 for files.
+     */
+    private static function chmod_recursive(string $path): void {
+        if (! is_dir($path)) {
+            return;
+        }
+
+        @chmod($path, 0755);
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @chmod($item->getPathname(), 0755);
+            } else {
+                @chmod($item->getPathname(), 0644);
             }
         }
     }
