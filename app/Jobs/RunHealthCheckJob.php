@@ -19,15 +19,12 @@ class RunHealthCheckJob implements ShouldQueue
     public int $tries = 2;
     public int $timeout = 60;
 
-    /**
-     * Delay before running health check to give the site time to stabilize.
-     */
-    public int $delay = 10;
-
     public function __construct(
         public Site $site,
         public ?UpdateJob $updateJob = null,
-    ) {}
+    ) {
+        $this->delay = 10;
+    }
 
     public function handle(HealthCheckService $healthCheckService): void
     {
