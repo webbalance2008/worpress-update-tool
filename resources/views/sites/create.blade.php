@@ -1,35 +1,29 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Add a New Site</h2>
-    </x-slot>
+    <div class="max-w-lg mx-auto">
+        <h1 class="font-sans text-xl font-medium text-white mb-6">Add a New Site</h1>
 
-    <div class="py-8">
-        <div class="max-w-lg mx-auto sm:px-6 lg:px-8">
-            <form method="POST" action="{{ route('sites.store') }}" class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 space-y-4">
-                @csrf
+        <form method="POST" action="{{ route('sites.store') }}" class="wb-card p-6 space-y-5">
+            @csrf
 
-                <div>
-                    <x-input-label for="name" value="Site Name" />
-                    <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name')" required autofocus />
-                    <x-input-error :messages="$errors->get('name')" class="mt-2" />
-                </div>
+            <div>
+                <label for="name" class="wb-label block mb-2">Site Name</label>
+                <input id="name" name="name" type="text" value="{{ old('name') }}" required autofocus class="wb-input w-full" />
+                @error('name') <p class="text-red-400 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
 
-                <div>
-                    <x-input-label for="url" value="Site URL" />
-                    <x-text-input id="url" name="url" type="url" class="mt-1 block w-full" :value="old('url')" required placeholder="https://example.com" />
-                    <x-input-error :messages="$errors->get('url')" class="mt-2" />
-                </div>
+            <div>
+                <label for="url" class="wb-label block mb-2">Site URL</label>
+                <input id="url" name="url" type="url" value="{{ old('url') }}" required placeholder="https://example.com" class="wb-input w-full" />
+                @error('url') <p class="text-red-400 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
 
-                <div class="pt-4">
-                    <x-primary-button class="w-full justify-center">
-                        Create Site
-                    </x-primary-button>
-                </div>
-            </form>
+            <div class="pt-2">
+                <button type="submit" class="wb-btn-primary w-full text-center">Create Site</button>
+            </div>
+        </form>
 
-            <p class="mt-4 text-sm text-gray-500 text-center">
-                After creating the site, you'll receive a registration token to configure in the WordPress agent plugin.
-            </p>
-        </div>
+        <p class="mt-4 text-sm text-white/30 text-center font-body">
+            After creating the site, you'll receive a registration token to configure in the WordPress agent plugin.
+        </p>
     </div>
 </x-app-layout>

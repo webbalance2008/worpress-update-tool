@@ -1,82 +1,74 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Update Job #{{ $job->id }} &mdash; {{ $site->name }}
-        </h2>
-    </x-slot>
+    <div class="mb-6">
+        <a href="{{ route('sites.history', $site) }}" class="font-mono text-xs text-wb-teal uppercase tracking-[0.12em] hover:underline">&larr; Back to History</a>
+    </div>
 
-    <div class="py-8">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="mb-6">
-                <a href="{{ route('sites.history', $site) }}" class="text-sm text-indigo-600 hover:underline">&larr; Back to History</a>
-            </div>
+    <h1 class="font-sans text-xl font-medium text-white mb-6">
+        Update Job #{{ $job->id }} &mdash; {{ $site->name }}
+    </h1>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Status</h3>
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                        @switch($job->status->value)
-                            @case('completed') bg-green-100 text-green-800 @break
-                            @case('failed') bg-red-100 text-red-800 @break
-                            @case('in_progress') bg-blue-100 text-blue-800 @break
-                            @default bg-yellow-100 text-yellow-800
-                        @endswitch
-                    ">{{ $job->status->label() }}</span>
-                    @if($job->summary)
-                        <p class="text-sm text-gray-600 mt-3">{{ $job->summary }}</p>
-                    @endif
-                </div>
-
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Risk Assessment</h3>
-                    @if($job->riskAssessment)
-                        <div class="flex items-center space-x-3 mb-3">
-                            <span class="text-3xl font-bold">{{ $job->riskAssessment->score }}</span>
-                            <span class="text-sm font-medium">{{ ucfirst($job->riskAssessment->level->value) }}</span>
-                        </div>
-                        <p class="text-sm text-gray-600">{{ $job->riskAssessment->explanation }}</p>
-                    @else
-                        <p class="text-sm text-gray-400">No risk assessment recorded.</p>
-                    @endif
-                </div>
-
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Post-Update Health</h3>
-                    @if($job->healthChecks->isEmpty())
-                        <p class="text-sm text-gray-400">No health check results yet.</p>
-                    @else
-                        @php $hc = $job->healthChecks->first(); @endphp
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mb-3
-                            @switch($hc->status->value)
-                                @case('passed') bg-green-100 text-green-800 @break
-                                @case('degraded') bg-orange-100 text-orange-800 @break
-                                @case('failed') bg-red-100 text-red-800 @break
-                                @default bg-gray-100 text-gray-800
-                            @endswitch
-                        ">{{ $hc->status->label() }}</span>
-                    @endif
-                </div>
-            </div>
-
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Update Items</h2>
-                </div>
-                <div class="divide-y divide-gray-200">
-                    @foreach($job->items as $item)
-                        <div class="px-6 py-4">
-                            <div class="flex items-center justify-between">
-                                <span class="font-medium text-gray-900">{{ $item->slug }} <span class="text-xs text-gray-500">({{ $item->type }})</span></span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $item->status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">{{ ucfirst($item->status) }}</span>
-                            </div>
-                            <div class="text-sm text-gray-500 mt-1">{{ $item->old_version }} &rarr; {{ $item->resulting_version ?? $item->requested_version }}</div>
-                            @if($item->error_message)
-                                <div class="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">{{ $item->error_message }}</div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="wb-card p-6">
+            <h3 class="wb-label mb-3">Status</h3>
+            @switch($job->status->value)
+                @case('completed') <span class="wb-badge-green">Completed</span> @break
+                @case('failed') <span class="wb-badge-red">Failed</span> @break
+                @case('in_progress') <span class="wb-badge bg-blue-500/15 text-blue-400 border border-blue-500/30">In Progress</span> @break
+                @default <span class="wb-badge-yellow">{{ $job->status->label() }}</span>
+            @endswitch
+            @if($job->summary)
+                <p class="text-sm text-white/50 mt-3">{{ $job->summary }}</p>
+            @endif
         </div>
+
+        <div class="wb-card p-6">
+            <h3 class="wb-label mb-3">Risk Assessment</h3>
+            @if($job->riskAssessment)
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="wb-metric">{{ $job->riskAssessment->score }}</span>
+                    <span class="text-sm text-white/60">{{ ucfirst($job->riskAssessment->level->value) }}</span>
+                </div>
+                <p class="text-sm text-white/40">{{ $job->riskAssessment->explanation }}</p>
+            @else
+                <p class="text-sm text-white/30">No risk assessment recorded.</p>
+            @endif
+        </div>
+
+        <div class="wb-card p-6">
+            <h3 class="wb-label mb-3">Post-Update Health</h3>
+            @if($job->healthChecks->isEmpty())
+                <p class="text-sm text-white/30">No health check results yet.</p>
+            @else
+                @php $hc = $job->healthChecks->first(); @endphp
+                @switch($hc->status->value)
+                    @case('passed') <span class="wb-badge-green">Passed</span> @break
+                    @case('degraded') <span class="wb-badge-orange">Degraded</span> @break
+                    @case('failed') <span class="wb-badge-red">Failed</span> @break
+                    @default <span class="wb-badge-gray">{{ $hc->status->label() }}</span>
+                @endswitch
+            @endif
+        </div>
+    </div>
+
+    <div class="wb-card">
+        <div class="px-6 py-4 border-b border-white/[0.04]">
+            <span class="wb-label">Update Items</span>
+        </div>
+        @foreach($job->items as $item)
+            <div class="px-6 py-4 border-b border-white/[0.04]">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-white">{{ $item->slug }} <span class="text-xs text-white/30 font-mono">({{ $item->type }})</span></span>
+                    @if($item->status === 'completed')
+                        <span class="wb-badge-green">Completed</span>
+                    @else
+                        <span class="wb-badge-red">{{ ucfirst($item->status) }}</span>
+                    @endif
+                </div>
+                <div class="text-sm text-white/40 font-mono mt-1">{{ $item->old_version }} &rarr; {{ $item->resulting_version ?? $item->requested_version }}</div>
+                @if($item->error_message)
+                    <div class="mt-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-md font-mono text-xs">{{ $item->error_message }}</div>
+                @endif
+            </div>
+        @endforeach
     </div>
 </x-app-layout>

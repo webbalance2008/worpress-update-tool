@@ -11,8 +11,20 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                wb: {
+                    bg: '#0e1822',
+                    card: '#131f2c',
+                    teal: '#00d4e8',
+                    border: 'rgba(255,255,255,0.08)',
+                    muted: '#717182',
+                    destructive: '#d4183d',
+                },
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                mono: ['DM Mono', 'monospace'],
+                sans: ['Montserrat', ...defaultTheme.fontFamily.sans],
+                body: ['Inter', ...defaultTheme.fontFamily.sans],
             },
         },
     },

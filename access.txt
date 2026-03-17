@@ -1,0 +1,23 @@
+Awesome, updates.web-balance.co.uk is ready to go!
+ SFTP/SSH details
+IP/server address
+185.219.236.185
+Port
+2223
+Username
+webupdates
+Password
+B&^fy{WN&@yk
+ Database details
+Hostname
+127.0.0.1
+Database name & username
+M3kqMXgzIrmD
+Password
+bq&]yq6q58px
+ Passwords will only be shown once, please make a note of them before proceeding.
+Connecting your domain
+You'll need to point updates.web-balance.co.uk to 185.219.236.185 before you can use the site.
+If you need any help updating updates.web-balance.co.uk's DNS, please don't hesitate to contact us.
+
+
