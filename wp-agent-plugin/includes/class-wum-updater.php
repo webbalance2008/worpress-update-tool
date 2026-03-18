@@ -25,70 +25,45 @@ class WUM_Updater {
         require_once ABSPATH . 'wp-admin/includes/update.php';
 
         // Delete cached transients and force a full refresh from wordpress.org
-        // Without this, wp_update_plugins() may return early if transient exists
         delete_site_transient('update_plugins');
         delete_site_transient('update_themes');
-
-        // Also clear any object cache to ensure fresh data
         wp_cache_flush();
-
         wp_update_plugins();
         wp_update_themes();
 
         // Log what the transient contains for requested items
-        $update_data = get_site_transient('update_plugins');
-        $requested_slugs = array_column($items, 'slug');
-        $transient_debug = [];
-
-        if ($update_data && isset($update_data->response)) {
-            foreach ($update_data->response as $file => $info) {
-                $dir = dirname($file);
-                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
-                    $transient_debug[$file] = [
-                        'slug'    => $info->slug ?? 'unknown',
-                        'version' => $info->new_version ?? 'unknown',
-                        'package' => ! empty($info->package) ? 'present' : 'MISSING',
-                    ];
-                }
-            }
-        }
-
-        // Also check the no_update list — plugins WP thinks are already current
-        if ($update_data && isset($update_data->no_update)) {
-            foreach ($update_data->no_update as $file => $info) {
-                $dir = dirname($file);
-                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
-                    $transient_debug[$file] = [
-                        'slug'    => $info->slug ?? 'unknown',
-                        'version' => $info->new_version ?? 'unknown',
-                        'status'  => 'NO_UPDATE_NEEDED',
-                    ];
-                }
-            }
-        }
-
+        $transient_debug = self::build_transient_debug($items);
         error_log('WUM Updater transient debug: ' . wp_json_encode($transient_debug));
 
         // Attempt to fix directory permissions before running updates
         self::fix_directory_permissions();
 
+        // Group items by type
+        $plugins = array_filter($items, fn($i) => $i['type'] === 'plugin');
+        $themes  = array_filter($items, fn($i) => $i['type'] === 'theme');
+        $cores   = array_filter($items, fn($i) => $i['type'] === 'core');
+
         $results = [];
 
-        foreach ($items as $item) {
-            $result = match ($item['type']) {
-                'plugin' => self::update_plugin($item),
-                'theme'  => self::update_theme($item),
-                'core'   => self::update_core($item),
-                default  => [
-                    'status'        => 'failed',
-                    'error_message' => "Unknown item type: {$item['type']}",
-                ],
-            };
-
+        // Handle core updates first (one at a time)
+        foreach ($cores as $item) {
+            $result = self::update_core($item);
             $result['update_job_item_id'] = $item['update_job_item_id'];
-            $result['slug']               = $item['slug'];
-            $result['type']               = $item['type'];
-            $results[]                    = $result;
+            $result['slug'] = $item['slug'];
+            $result['type'] = $item['type'];
+            $results[] = $result;
+        }
+
+        // Handle theme updates using bulk_upgrade
+        if (! empty($themes)) {
+            $theme_results = self::bulk_update_themes($themes);
+            $results = array_merge($results, $theme_results);
+        }
+
+        // Handle plugin updates using bulk_upgrade
+        if (! empty($plugins)) {
+            $plugin_results = self::bulk_update_plugins($plugins);
+            $results = array_merge($results, $plugin_results);
         }
 
         // Report results back to dashboard
@@ -98,128 +73,194 @@ class WUM_Updater {
     }
 
     /**
-     * Update a single plugin.
+     * Bulk update plugins using Plugin_Upgrader::bulk_upgrade().
+     * This avoids the transient refresh issue that occurs when upgrading one at a time.
      */
-    private static function update_plugin(array $item): array {
-        $plugin_file = self::find_plugin_file($item['slug']);
+    private static function bulk_update_plugins(array $items): array {
+        $results = [];
+        $plugin_files = [];
+        $item_map = []; // Maps plugin_file => item data
 
-        if (! $plugin_file) {
-            return [
-                'status'        => 'failed',
-                'error_message' => "Plugin file not found for slug: {$item['slug']}",
-            ];
+        // Resolve slugs to plugin files and record old versions
+        foreach ($items as $item) {
+            $plugin_file = self::find_plugin_file($item['slug']);
+
+            if (! $plugin_file) {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $item['slug'],
+                    'type'               => 'plugin',
+                    'status'             => 'failed',
+                    'error_message'      => "Plugin file not found for slug: {$item['slug']}",
+                ];
+                continue;
+            }
+
+            // Fix permissions on this plugin's directory recursively
+            $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
+            if (dirname($plugin_file) !== '.' && is_dir($plugin_dir)) {
+                self::chmod_recursive($plugin_dir);
+            }
+
+            $plugin_files[] = $plugin_file;
+            $item_map[$plugin_file] = $item;
+            $item_map[$plugin_file]['old_version'] = self::get_plugin_version($plugin_file);
         }
 
-        $old_version = self::get_plugin_version($plugin_file);
-
-        // Fix permissions on this plugin's directory recursively
-        $plugin_dir = WP_PLUGIN_DIR . '/' . dirname($plugin_file);
-        if (dirname($plugin_file) !== '.' && is_dir($plugin_dir)) {
-            self::chmod_recursive($plugin_dir);
+        if (empty($plugin_files)) {
+            return $results;
         }
 
+        // Run bulk upgrade — this handles the transient correctly for multiple plugins
         $skin     = new WP_Ajax_Upgrader_Skin();
         $upgrader = new Plugin_Upgrader($skin);
-        $result   = $upgrader->upgrade($plugin_file);
+        $bulk_results = $upgrader->bulk_upgrade($plugin_files);
 
-        // Clear plugin cache so we read the new version
+        // Clear plugin cache so we read new versions
         wp_cache_delete('plugins', 'plugins');
 
-        $new_version = self::get_plugin_version($plugin_file);
+        // Map bulk results back to our item format
+        foreach ($plugin_files as $plugin_file) {
+            $item = $item_map[$plugin_file];
+            $old_version = $item['old_version'];
+            $new_version = self::get_plugin_version($plugin_file);
+            $upgrade_result = $bulk_results[$plugin_file] ?? null;
 
-        if (is_wp_error($result)) {
-            return [
-                'old_version'       => $old_version,
-                'resulting_version' => $new_version,
-                'status'            => 'failed',
-                'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
-                'error_message'     => $result->get_error_message(),
-            ];
+            if (is_wp_error($upgrade_result)) {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $item['slug'],
+                    'type'               => 'plugin',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'failed',
+                    'error_message'      => $upgrade_result->get_error_message(),
+                ];
+            } elseif ($upgrade_result === false || $upgrade_result === null) {
+                // Check why it failed
+                $error_detail = '';
+                $update_data = get_site_transient('update_plugins');
+
+                // Check if plugin is in the no_update list (already current)
+                $in_no_update = isset($update_data->no_update[$plugin_file]);
+                $has_package = isset($update_data->response[$plugin_file]->package)
+                    && ! empty($update_data->response[$plugin_file]->package);
+
+                if ($in_no_update) {
+                    $error_detail = 'No download package available. The plugin is at the latest version.';
+                } elseif (! $has_package) {
+                    $error_detail = 'No download package available. This is usually a premium plugin that requires an active license key on this site.';
+                } else {
+                    $error_detail = 'Upgrade returned false. Check file permissions.';
+                }
+
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $item['slug'],
+                    'type'               => 'plugin',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'failed',
+                    'error_message'      => $error_detail,
+                ];
+            } else {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $item['slug'],
+                    'type'               => 'plugin',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'completed',
+                ];
+            }
         }
 
-        if ($result === false) {
-            $messages = $skin->get_upgrade_messages();
-            $skin_errors = $skin->get_errors();
-            $error_detail = '';
-
-            if ($skin_errors && $skin_errors->has_errors()) {
-                $error_detail = implode(' ', $skin_errors->get_error_messages());
-            } elseif (! empty($messages)) {
-                $error_detail = implode(' ', $messages);
-            }
-
-            // Check if the update package URL is missing (common for premium plugins)
-            $update_data = get_site_transient('update_plugins');
-            $has_package = isset($update_data->response[$plugin_file]->package)
-                && ! empty($update_data->response[$plugin_file]->package);
-
-            if (! $has_package) {
-                $error_detail = 'No download package available. This is usually a premium plugin that requires an active license key on this site. ' . $error_detail;
-            }
-
-            return [
-                'old_version'       => $old_version,
-                'resulting_version' => $new_version,
-                'status'            => 'failed',
-                'raw_result'        => ['messages' => $messages],
-                'error_message'     => $error_detail ?: 'Upgrade returned false. Check file permissions.',
-            ];
-        }
-
-        return [
-            'old_version'       => $old_version,
-            'resulting_version' => $new_version,
-            'status'            => 'completed',
-            'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
-        ];
+        return $results;
     }
 
     /**
-     * Update a single theme.
+     * Bulk update themes using Theme_Upgrader::bulk_upgrade().
      */
-    private static function update_theme(array $item): array {
-        $theme = wp_get_theme($item['slug']);
+    private static function bulk_update_themes(array $items): array {
+        $results = [];
+        $theme_slugs = [];
+        $item_map = [];
 
-        if (! $theme->exists()) {
-            return [
-                'status'        => 'failed',
-                'error_message' => "Theme not found: {$item['slug']}",
-            ];
+        foreach ($items as $item) {
+            $theme = wp_get_theme($item['slug']);
+
+            if (! $theme->exists()) {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $item['slug'],
+                    'type'               => 'theme',
+                    'status'             => 'failed',
+                    'error_message'      => "Theme not found: {$item['slug']}",
+                ];
+                continue;
+            }
+
+            // Fix permissions on this theme's directory recursively
+            $theme_dir = get_theme_root() . '/' . $item['slug'];
+            if (is_dir($theme_dir)) {
+                self::chmod_recursive($theme_dir);
+            }
+
+            $theme_slugs[] = $item['slug'];
+            $item_map[$item['slug']] = $item;
+            $item_map[$item['slug']]['old_version'] = $theme->get('Version');
         }
 
-        $old_version = $theme->get('Version');
-
-        // Fix permissions on this theme's directory recursively
-        $theme_dir = get_theme_root() . '/' . $item['slug'];
-        if (is_dir($theme_dir)) {
-            self::chmod_recursive($theme_dir);
+        if (empty($theme_slugs)) {
+            return $results;
         }
 
         $skin     = new WP_Ajax_Upgrader_Skin();
         $upgrader = new Theme_Upgrader($skin);
-        $result   = $upgrader->upgrade($item['slug']);
+        $bulk_results = $upgrader->bulk_upgrade($theme_slugs);
 
-        // Refresh theme data
         wp_clean_themes_cache();
-        $theme       = wp_get_theme($item['slug']);
-        $new_version = $theme->get('Version');
 
-        if (is_wp_error($result)) {
-            return [
-                'old_version'       => $old_version,
-                'resulting_version' => $new_version,
-                'status'            => 'failed',
-                'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
-                'error_message'     => $result->get_error_message(),
-            ];
+        foreach ($theme_slugs as $slug) {
+            $item = $item_map[$slug];
+            $old_version = $item['old_version'];
+            $theme = wp_get_theme($slug);
+            $new_version = $theme->get('Version');
+            $upgrade_result = $bulk_results[$slug] ?? null;
+
+            if (is_wp_error($upgrade_result)) {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $slug,
+                    'type'               => 'theme',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'failed',
+                    'error_message'      => $upgrade_result->get_error_message(),
+                ];
+            } elseif ($upgrade_result === false || $upgrade_result === null) {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $slug,
+                    'type'               => 'theme',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'failed',
+                    'error_message'      => 'Theme upgrade failed. Check file permissions.',
+                ];
+            } else {
+                $results[] = [
+                    'update_job_item_id' => $item['update_job_item_id'],
+                    'slug'               => $slug,
+                    'type'               => 'theme',
+                    'old_version'        => $old_version,
+                    'resulting_version'  => $new_version,
+                    'status'             => 'completed',
+                ];
+            }
         }
 
-        return [
-            'old_version'       => $old_version,
-            'resulting_version' => $new_version,
-            'status'            => 'completed',
-            'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
-        ];
+        return $results;
     }
 
     /**
@@ -231,7 +272,6 @@ class WUM_Updater {
         $skin     = new WP_Ajax_Upgrader_Skin();
         $upgrader = new Core_Upgrader($skin);
 
-        // Get the update object
         $updates = get_site_transient('update_core');
         $update  = null;
 
@@ -254,7 +294,6 @@ class WUM_Updater {
         }
 
         $result = $upgrader->upgrade($update);
-
         $new_version = get_bloginfo('version');
 
         if (is_wp_error($result)) {
@@ -273,6 +312,43 @@ class WUM_Updater {
             'status'            => 'completed',
             'raw_result'        => ['messages' => $skin->get_upgrade_messages()],
         ];
+    }
+
+    /**
+     * Build debug info about what the update transient contains for requested items.
+     */
+    private static function build_transient_debug(array $items): array {
+        $update_data = get_site_transient('update_plugins');
+        $requested_slugs = array_column($items, 'slug');
+        $debug = [];
+
+        if ($update_data && isset($update_data->response)) {
+            foreach ($update_data->response as $file => $info) {
+                $dir = dirname($file);
+                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
+                    $debug[$file] = [
+                        'slug'    => $info->slug ?? 'unknown',
+                        'version' => $info->new_version ?? 'unknown',
+                        'package' => ! empty($info->package) ? 'present' : 'MISSING',
+                    ];
+                }
+            }
+        }
+
+        if ($update_data && isset($update_data->no_update)) {
+            foreach ($update_data->no_update as $file => $info) {
+                $dir = dirname($file);
+                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
+                    $debug[$file] = [
+                        'slug'    => $info->slug ?? 'unknown',
+                        'version' => $info->new_version ?? 'unknown',
+                        'status'  => 'NO_UPDATE_NEEDED',
+                    ];
+                }
+            }
+        }
+
+        return $debug;
     }
 
     /**
@@ -320,7 +396,6 @@ class WUM_Updater {
             WP_CONTENT_DIR . '/upgrade',
         ];
 
-        // Ensure the upgrade temp directory exists
         if (! is_dir(WP_CONTENT_DIR . '/upgrade')) {
             @mkdir(WP_CONTENT_DIR . '/upgrade', 0755, true);
         }
@@ -358,7 +433,6 @@ class WUM_Updater {
 
     /**
      * Check filesystem writability for key directories.
-     * Returns an array of paths and their writable status.
      */
     public static function check_filesystem(): array {
         $paths = [
