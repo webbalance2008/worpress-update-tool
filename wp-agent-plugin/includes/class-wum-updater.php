@@ -335,7 +335,7 @@ class WUM_Updater {
     /**
      * Recursively set permissions: 755 for directories, 644 for files.
      */
-    private static function chmod_recursive(string $path): void {
+    public static function chmod_recursive(string $path): void {
         if (! is_dir($path)) {
             return;
         }

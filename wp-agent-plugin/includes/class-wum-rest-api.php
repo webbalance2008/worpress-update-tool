@@ -207,6 +207,20 @@ class WUM_REST_API {
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
+        // Detect the actual plugin directory (could be wum-agent or wp-agent-plugin)
+        $plugin_dir = dirname(dirname(__FILE__));
+
+        // Fix permissions on plugin directory and parent before extracting
+        if (is_dir(WP_PLUGIN_DIR) && ! is_writable(WP_PLUGIN_DIR)) {
+            @chmod(WP_PLUGIN_DIR, 0755);
+        }
+        if (is_dir($plugin_dir)) {
+            WUM_Updater::chmod_recursive($plugin_dir);
+        }
+
+        // Initialise WP_Filesystem so unzip_file() can use it
+        WP_Filesystem();
+
         // Download the zip to a temp file
         $temp_file = download_url($download_url, 60);
 
@@ -217,18 +231,27 @@ class WUM_REST_API {
             ], 500);
         }
 
-        $plugin_dir = WP_PLUGIN_DIR . '/wum-agent';
-
-        // Extract zip over the existing plugin directory
-        $unzip_result = unzip_file($temp_file, $plugin_dir);
+        // Extract to a temp directory first, then copy over
+        $temp_dir = WP_CONTENT_DIR . '/upgrade/wum-agent-tmp-' . time();
+        $unzip_result = unzip_file($temp_file, $temp_dir);
         @unlink($temp_file);
 
         if (is_wp_error($unzip_result)) {
+            @unlink($temp_file);
+            self::rm_rf($temp_dir);
             return new WP_REST_Response([
                 'success' => false,
                 'error'   => ['code' => 'unzip_failed', 'message' => $unzip_result->get_error_message()],
             ], 500);
         }
+
+        // Find the extracted directory (could be wp-agent-plugin/ inside temp_dir)
+        $extracted_dirs = glob($temp_dir . '/*', GLOB_ONLYDIR);
+        $source_dir = ! empty($extracted_dirs) ? $extracted_dirs[0] : $temp_dir;
+
+        // Copy extracted files over the current plugin directory
+        self::copy_directory($source_dir, $plugin_dir);
+        self::rm_rf($temp_dir);
 
         // Read the new version from the updated plugin file
         $new_version = WUM_AGENT_VERSION;
@@ -243,6 +266,55 @@ class WUM_REST_API {
             'new_version' => $new_version,
             'message'     => 'Agent plugin updated successfully.',
         ], 200);
+    }
+
+    /**
+     * Recursively copy a directory.
+     */
+    private static function copy_directory(string $source, string $dest): void {
+        if (! is_dir($dest)) {
+            @mkdir($dest, 0755, true);
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($source, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $target = $dest . '/' . $iterator->getSubPathname();
+            if ($item->isDir()) {
+                if (! is_dir($target)) {
+                    @mkdir($target, 0755, true);
+                }
+            } else {
+                @copy($item->getPathname(), $target);
+            }
+        }
+    }
+
+    /**
+     * Recursively remove a directory.
+     */
+    private static function rm_rf(string $dir): void {
+        if (! is_dir($dir)) {
+            return;
+        }
+
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getPathname());
+            } else {
+                @unlink($item->getPathname());
+            }
+        }
+
+        @rmdir($dir);
     }
 
     private static function get_core_item(): array {
