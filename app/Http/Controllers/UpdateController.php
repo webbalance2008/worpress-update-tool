@@ -132,10 +132,50 @@ class UpdateController extends Controller
         ]);
 
         if ($request->input('confirmation_text') !== 'Update') {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Confirmation text did not match.'], 422);
+            }
             return back()->with('error', 'Confirmation text did not match. Please type "Update" to proceed.');
         }
 
-        UpdateAllSitesJob::dispatch($request->user());
+        // Create update jobs for each site inline so we can return job IDs for progress tracking
+        $sites = Site::forUser($request->user())
+            ->connected()
+            ->get();
+
+        $jobs = [];
+
+        foreach ($sites as $site) {
+            $pendingItems = $site->installedItems()
+                ->whereNotNull('available_version')
+                ->get();
+
+            if ($pendingItems->isEmpty()) {
+                continue;
+            }
+
+            $job = $this->updateService->createUpdateJob(
+                $site,
+                $request->user(),
+                $pendingItems->pluck('id')->toArray(),
+            );
+
+            $jobs[] = [
+                'job_id' => $job->id,
+                'site_id' => $site->id,
+                'site_name' => $site->name,
+                'total_items' => $pendingItems->count(),
+                'progress_url' => route('updates.progress', [$site, $job->id]),
+                'details_url' => route('updates.show', [$site, $job->id]),
+            ];
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'jobs' => $jobs,
+                'total_sites' => count($jobs),
+            ]);
+        }
 
         return redirect()
             ->route('dashboard')
