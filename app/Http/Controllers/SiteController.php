@@ -129,7 +129,8 @@ class SiteController extends Controller
             return back()->with('success', "Agent plugin updated to {$version}.");
         }
 
-        return back()->with('error', 'Failed to push plugin update. Check site connectivity.');
+        $detail = $result['error'] ?? 'Unknown error — check site connectivity.';
+        return back()->with('error', "Failed to push plugin update: {$detail}");
     }
 
     public function pushPluginUpdateAll(Request $request)
@@ -142,16 +143,25 @@ class SiteController extends Controller
         $success = 0;
         $failed = 0;
 
+        $errors = [];
+
         foreach ($sites as $site) {
             $result = $this->agentApiClient->pushPluginUpdate($site, $downloadUrl);
             if ($result && ($result['success'] ?? false)) {
                 $success++;
             } else {
                 $failed++;
+                $detail = $result['error'] ?? 'Unknown error';
+                $errors[] = "{$site->name}: {$detail}";
             }
         }
 
-        return back()->with('success', "Plugin update pushed to {$success} site(s)" . ($failed ? ", {$failed} failed." : '.'));
+        if ($failed && $errors) {
+            $errorMsg = implode(' | ', $errors);
+            return back()->with('error', "Plugin update: {$success} succeeded, {$failed} failed. {$errorMsg}");
+        }
+
+        return back()->with('success', "Plugin update pushed to {$success} site(s).");
     }
 
     public function downloadAgentPlugin()

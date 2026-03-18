@@ -47,7 +47,10 @@ class AgentApiClient
                     'body' => $response->body(),
                 ]);
 
-                return null;
+                return [
+                    'success' => false,
+                    'error' => "HTTP {$response->status()}: {$response->body()}",
+                ];
             }
 
             return $response->json();
@@ -58,7 +61,10 @@ class AgentApiClient
                 'error' => $e->getMessage(),
             ]);
 
-            return null;
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
         }
     }
 
