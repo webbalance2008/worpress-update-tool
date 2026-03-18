@@ -28,8 +28,46 @@ class WUM_Updater {
         // Without this, wp_update_plugins() may return early if transient exists
         delete_site_transient('update_plugins');
         delete_site_transient('update_themes');
+
+        // Also clear any object cache to ensure fresh data
+        wp_cache_flush();
+
         wp_update_plugins();
         wp_update_themes();
+
+        // Log what the transient contains for requested items
+        $update_data = get_site_transient('update_plugins');
+        $requested_slugs = array_column($items, 'slug');
+        $transient_debug = [];
+
+        if ($update_data && isset($update_data->response)) {
+            foreach ($update_data->response as $file => $info) {
+                $dir = dirname($file);
+                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
+                    $transient_debug[$file] = [
+                        'slug'    => $info->slug ?? 'unknown',
+                        'version' => $info->new_version ?? 'unknown',
+                        'package' => ! empty($info->package) ? 'present' : 'MISSING',
+                    ];
+                }
+            }
+        }
+
+        // Also check the no_update list — plugins WP thinks are already current
+        if ($update_data && isset($update_data->no_update)) {
+            foreach ($update_data->no_update as $file => $info) {
+                $dir = dirname($file);
+                if (in_array($dir, $requested_slugs, true) || in_array(basename($file, '.php'), $requested_slugs, true)) {
+                    $transient_debug[$file] = [
+                        'slug'    => $info->slug ?? 'unknown',
+                        'version' => $info->new_version ?? 'unknown',
+                        'status'  => 'NO_UPDATE_NEEDED',
+                    ];
+                }
+            }
+        }
+
+        error_log('WUM Updater transient debug: ' . wp_json_encode($transient_debug));
 
         // Attempt to fix directory permissions before running updates
         self::fix_directory_permissions();
@@ -54,7 +92,7 @@ class WUM_Updater {
         }
 
         // Report results back to dashboard
-        self::report_results($update_job_id, $results);
+        self::report_results($update_job_id, $results, $transient_debug);
 
         return $results;
     }
@@ -263,10 +301,11 @@ class WUM_Updater {
     /**
      * Report update results back to the dashboard.
      */
-    private static function report_results(int $update_job_id, array $results): void {
+    private static function report_results(int $update_job_id, array $results, array $transient_debug = []): void {
         WUM_API_Client::post('agent/update-result', [
-            'update_job_id' => $update_job_id,
-            'items'         => $results,
+            'update_job_id'   => $update_job_id,
+            'items'           => $results,
+            'transient_debug' => $transient_debug,
         ]);
     }
 
