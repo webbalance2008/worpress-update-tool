@@ -237,17 +237,23 @@
         showPush: false,
         pushInProgress: false,
         pushResults: [],
+        pushVersion: null,
+        pushChangelog: null,
 
         async pushPluginUpdate() {
             this.showPush = true;
             this.pushInProgress = true;
             this.pushResults = [];
+            this.pushVersion = null;
+            this.pushChangelog = null;
 
             try {
                 const res = await axios.post('{{ route('sites.push-plugin-update-all') }}', {}, {
                     headers: { 'Accept': 'application/json' }
                 });
                 this.pushResults = res.data.sites;
+                this.pushVersion = res.data.version;
+                this.pushChangelog = res.data.changelog;
             } catch (e) {
                 this.pushResults = [{ name: 'Error', success: false, error: e.response?.data?.message || 'Request failed.' }];
             }
@@ -407,7 +413,10 @@
             <div class="wb-card p-8 max-w-lg w-full mx-4 shadow-2xl" @click.outside="!pushInProgress && closePush()">
                 {{-- Header --}}
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-lg font-sans font-semibold text-white">Push Plugin Update</h2>
+                    <div>
+                        <h2 class="text-lg font-sans font-semibold text-white">Push Plugin Update</h2>
+                        <span x-show="pushVersion" class="text-xs font-mono text-wb-teal" x-text="'v' + pushVersion"></span>
+                    </div>
                     <span x-show="!pushInProgress" class="font-mono text-sm text-white/60"
                           x-text="pushResults.filter(r => r.success).length + ' / ' + pushResults.length + ' sites'"></span>
                 </div>
@@ -459,6 +468,19 @@
                             <span x-text="site.error"></span>
                         </div>
                     </template>
+                </div>
+
+                {{-- Changelog --}}
+                <div x-show="pushChangelog && !pushInProgress" class="mt-5 pt-4 border-t border-white/[0.06]">
+                    <h3 class="wb-label mb-2">What's New</h3>
+                    <div class="text-xs text-white/60 font-mono space-y-1 max-h-32 overflow-y-auto">
+                        <template x-for="line in (pushChangelog || '').split('\n').filter(l => l.trim().startsWith('-'))" :key="line">
+                            <div class="flex gap-2">
+                                <span class="text-wb-teal flex-shrink-0">&bull;</span>
+                                <span x-text="line.trim().replace(/^-\s*/, '')"></span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 {{-- Footer --}}

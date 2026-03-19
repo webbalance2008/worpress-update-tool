@@ -154,7 +154,15 @@ class SiteController extends Controller
         }
 
         if ($request->wantsJson()) {
-            return response()->json(['sites' => $siteResults]);
+            // Read plugin version and changelog
+            $version = self::getPluginVersion();
+            $changelog = self::getLatestChangelog();
+
+            return response()->json([
+                'sites'      => $siteResults,
+                'version'    => $version,
+                'changelog'  => $changelog,
+            ]);
         }
 
         $success = count(array_filter($siteResults, fn($r) => $r['success']));
@@ -166,6 +174,42 @@ class SiteController extends Controller
         }
 
         return back()->with('success', "Plugin update pushed to {$success} site(s).");
+    }
+
+    /**
+     * Read the agent plugin version from the plugin header.
+     */
+    private static function getPluginVersion(): string
+    {
+        $path = base_path('wp-agent-plugin/wum-agent.php');
+        $content = file_get_contents($path);
+
+        if (preg_match('/^\s*\*\s*Version:\s*(.+)$/m', $content, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Extract the latest version's changelog entries from CHANGELOG.md.
+     */
+    private static function getLatestChangelog(): ?string
+    {
+        $path = base_path('wp-agent-plugin/CHANGELOG.md');
+
+        if (! file_exists($path)) {
+            return null;
+        }
+
+        $content = file_get_contents($path);
+
+        // Extract the first version section (everything between the first ## and the second ##)
+        if (preg_match('/^## .+?\n(.*?)(?=\n## |\z)/s', $content, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return null;
     }
 
     public function downloadAgentPlugin()

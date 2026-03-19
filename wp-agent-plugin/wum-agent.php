@@ -3,7 +3,7 @@
  * Plugin Name: WP Update Manager Agent
  * Plugin URI:  https://example.com/wum-agent
  * Description: Connects this WordPress site to a WP Update Manager dashboard for remote update management.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      WP Update Manager
  * License:     GPL-2.0-or-later
  * Text Domain: wum-agent
@@ -15,7 +15,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('WUM_AGENT_VERSION', '1.0.0');
+define('WUM_AGENT_VERSION', '1.1.0');
 define('WUM_AGENT_FILE', __FILE__);
 define('WUM_AGENT_DIR', plugin_dir_path(__FILE__));
 define('WUM_AGENT_URL', plugin_dir_url(__FILE__));
