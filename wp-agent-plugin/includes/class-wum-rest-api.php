@@ -245,9 +245,13 @@ class WUM_REST_API {
             ], 500);
         }
 
-        // Find the extracted directory (could be wp-agent-plugin/ inside temp_dir)
+        // Find the source directory. If the zip has a single top-level directory,
+        // use that. Otherwise the files are directly in temp_dir.
         $extracted_dirs = glob($temp_dir . '/*', GLOB_ONLYDIR);
-        $source_dir = ! empty($extracted_dirs) ? $extracted_dirs[0] : $temp_dir;
+        $extracted_files = glob($temp_dir . '/*.php');
+        // If there are PHP files directly in temp_dir, files are at root level
+        $source_dir = ! empty($extracted_files) ? $temp_dir
+            : (count($extracted_dirs) === 1 ? $extracted_dirs[0] : $temp_dir);
 
         // Copy extracted files over the current plugin directory
         self::copy_directory($source_dir, $plugin_dir);

@@ -231,7 +231,8 @@ class SiteController extends Controller
         foreach ($files as $file) {
             if ($file->isFile()) {
                 $relativePath = str_replace($pluginDir . '/', '', $file->getPathname());
-                $zip->addFile($file->getPathname(), $relativePath);
+                // Include parent directory name so zip extracts as wp-agent-plugin/
+                $zip->addFile($file->getPathname(), 'wp-agent-plugin/' . $relativePath);
             }
         }
 
