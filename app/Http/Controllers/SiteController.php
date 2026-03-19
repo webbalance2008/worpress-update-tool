@@ -212,6 +212,31 @@ class SiteController extends Controller
         return null;
     }
 
+    public function agentPluginChangelog()
+    {
+        $version = self::getPluginVersion();
+        $changelogPath = base_path('wp-agent-plugin/CHANGELOG.md');
+        $changelog = file_exists($changelogPath) ? file_get_contents($changelogPath) : null;
+
+        // Parse changelog into structured data
+        $versions = [];
+        if ($changelog) {
+            // Split by ## version headers
+            preg_match_all('/^## (.+?)$(.*?)(?=^## |\z)/ms', $changelog, $matches, PREG_SET_ORDER);
+            foreach ($matches as $match) {
+                $ver = trim($match[1]);
+                $entries = array_filter(
+                    array_map('trim', explode("\n", trim($match[2]))),
+                    fn($line) => str_starts_with($line, '- ')
+                );
+                $entries = array_map(fn($line) => ltrim($line, '- '), $entries);
+                $versions[] = ['version' => $ver, 'entries' => $entries];
+            }
+        }
+
+        return view('agent-plugin.changelog', compact('version', 'versions'));
+    }
+
     public function downloadAgentPlugin()
     {
         $pluginDir = base_path('wp-agent-plugin');

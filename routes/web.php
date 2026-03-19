@@ -45,7 +45,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/updates/toggle-auto', [UpdateController::class, 'toggleAutoUpdates'])->name('updates.toggle-auto');
 });
 
-// Agent plugin download (no auth — agents download this via URL)
+// Agent plugin pages
+Route::get('/agent-plugin/changelog', [SiteController::class, 'agentPluginChangelog'])->name('agent-plugin.changelog')->middleware(['auth', 'verified']);
 Route::get('/agent-plugin/download', [SiteController::class, 'downloadAgentPlugin'])->name('agent-plugin.download');
 
 require __DIR__.'/auth.php';
