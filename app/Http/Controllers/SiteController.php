@@ -205,7 +205,7 @@ class SiteController extends Controller
         $content = file_get_contents($path);
 
         // Extract the first version section (everything between the first ## and the second ##)
-        if (preg_match('/^## .+?\n(.*?)(?=\n## |\z)/s', $content, $matches)) {
+        if (preg_match('/^## .+?\n(.*?)(?=\n## |\z)/ms', $content, $matches)) {
             return trim($matches[1]);
         }
 
