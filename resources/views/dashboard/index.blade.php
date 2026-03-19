@@ -42,13 +42,10 @@
         </button>
 
         {{-- Push Plugin Update to All Sites --}}
-        <form method="POST" action="{{ route('sites.push-plugin-update-all') }}" class="inline">
-            @csrf
-            <button type="submit" class="wb-btn-secondary flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                Push Plugin Update
-            </button>
-        </form>
+        <button data-push-plugin-btn class="wb-btn-secondary flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            Push Plugin Update
+        </button>
 
         {{-- Auto-Update Toggle --}}
         <form method="POST" action="{{ route('updates.toggle-auto') }}" class="flex items-center gap-3">
@@ -234,10 +231,38 @@
                 this.showProgress = false;
                 window.location.reload();
             }
+        },
+
+        // --- Push Plugin Update ---
+        showPush: false,
+        pushInProgress: false,
+        pushResults: [],
+
+        async pushPluginUpdate() {
+            this.showPush = true;
+            this.pushInProgress = true;
+            this.pushResults = [];
+
+            try {
+                const res = await axios.post('{{ route('sites.push-plugin-update-all') }}', {}, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                this.pushResults = res.data.sites;
+            } catch (e) {
+                this.pushResults = [{ name: 'Error', success: false, error: e.response?.data?.message || 'Request failed.' }];
+            }
+
+            this.pushInProgress = false;
+        },
+
+        closePush() {
+            this.showPush = false;
+            window.location.reload();
         }
     }"
     x-init="
         document.querySelector('[data-update-all-btn]')?.addEventListener('click', () => openConfirm());
+        document.querySelector('[data-push-plugin-btn]')?.addEventListener('click', () => pushPluginUpdate());
     ">
 
         {{-- Confirmation Modal --}}
@@ -370,6 +395,75 @@
                 {{-- Footer --}}
                 <div class="mt-6 flex justify-end" x-show="isFinished">
                     <button @click="closeProgress()" class="wb-btn-secondary">Close</button>
+                </div>
+            </div>
+        </div>
+        {{-- Push Plugin Update Modal --}}
+        <div x-show="showPush" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100">
+            <div class="wb-card p-8 max-w-lg w-full mx-4 shadow-2xl" @click.outside="!pushInProgress && closePush()">
+                {{-- Header --}}
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-sans font-semibold text-white">Push Plugin Update</h2>
+                    <span x-show="!pushInProgress" class="font-mono text-sm text-white/60"
+                          x-text="pushResults.filter(r => r.success).length + ' / ' + pushResults.length + ' sites'"></span>
+                </div>
+
+                {{-- Loading state --}}
+                <div x-show="pushInProgress" class="flex items-center gap-3 py-8 justify-center text-white/60">
+                    <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span class="text-sm font-mono">Pushing plugin update to all sites...</span>
+                </div>
+
+                {{-- Results --}}
+                <div x-show="!pushInProgress && pushResults.length > 0" class="space-y-0">
+                    <template x-for="site in pushResults" :key="site.name">
+                        <div class="flex items-center justify-between py-3 border-b border-white/[0.04] last:border-0">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <template x-if="site.success">
+                                    <span class="text-emerald-400 flex-shrink-0">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                    </span>
+                                </template>
+                                <template x-if="!site.success">
+                                    <span class="text-red-400 flex-shrink-0">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </span>
+                                </template>
+                                <div class="min-w-0">
+                                    <div class="text-sm text-white truncate" x-text="site.name"></div>
+                                    <div class="text-xs font-mono text-white/40 truncate" x-text="site.url"></div>
+                                </div>
+                            </div>
+                            <div class="text-right flex-shrink-0 ml-4">
+                                <template x-if="site.success && site.new_version">
+                                    <span class="text-xs font-mono text-emerald-400" x-text="'v' + site.new_version"></span>
+                                </template>
+                                <template x-if="!site.success">
+                                    <span class="text-xs font-mono text-red-400">Failed</span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Error details --}}
+                    <template x-for="site in pushResults.filter(s => !s.success && s.error)" :key="'push-err-' + site.name">
+                        <div class="mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-md font-mono">
+                            <span class="text-red-300" x-text="site.name + ': '"></span>
+                            <span x-text="site.error"></span>
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Footer --}}
+                <div class="mt-6 flex justify-end" x-show="!pushInProgress">
+                    <button @click="closePush()" class="wb-btn-secondary">Close</button>
                 </div>
             </div>
         </div>

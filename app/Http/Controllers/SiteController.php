@@ -140,25 +140,29 @@ class SiteController extends Controller
             ->get();
 
         $downloadUrl = route('agent-plugin.download');
-        $success = 0;
-        $failed = 0;
-
-        $errors = [];
+        $siteResults = [];
 
         foreach ($sites as $site) {
             $result = $this->agentApiClient->pushPluginUpdate($site, $downloadUrl);
-            if ($result && ($result['success'] ?? false)) {
-                $success++;
-            } else {
-                $failed++;
-                $detail = $result['error'] ?? 'Unknown error';
-                $errors[] = "{$site->name}: {$detail}";
-            }
+            $siteResults[] = [
+                'name'        => $site->name,
+                'url'         => $site->url,
+                'success'     => (bool) ($result['success'] ?? false),
+                'new_version' => $result['new_version'] ?? null,
+                'error'       => ($result['success'] ?? false) ? null : ($result['error'] ?? 'Unknown error'),
+            ];
         }
 
-        if ($failed && $errors) {
-            $errorMsg = implode(' | ', $errors);
-            return back()->with('error', "Plugin update: {$success} succeeded, {$failed} failed. {$errorMsg}");
+        if ($request->wantsJson()) {
+            return response()->json(['sites' => $siteResults]);
+        }
+
+        $success = count(array_filter($siteResults, fn($r) => $r['success']));
+        $failed = count(array_filter($siteResults, fn($r) => ! $r['success']));
+
+        if ($failed) {
+            $errors = array_map(fn($r) => "{$r['name']}: {$r['error']}", array_filter($siteResults, fn($r) => ! $r['success']));
+            return back()->with('error', "Plugin update: {$success} succeeded, {$failed} failed. " . implode(' | ', $errors));
         }
 
         return back()->with('success', "Plugin update pushed to {$success} site(s).");
