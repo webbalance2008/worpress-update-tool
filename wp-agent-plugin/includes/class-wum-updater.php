@@ -24,12 +24,14 @@ class WUM_Updater {
         require_once ABSPATH . 'wp-admin/includes/misc.php';
         require_once ABSPATH . 'wp-admin/includes/update.php';
 
-        // Delete cached transients and force a full refresh from wordpress.org
-        delete_site_transient('update_plugins');
-        delete_site_transient('update_themes');
-        wp_cache_flush();
-        wp_update_plugins();
-        wp_update_themes();
+        // Use the existing update transients — WordPress already has correct data.
+        // Only refresh if the transient is missing entirely.
+        if (! get_site_transient('update_plugins')) {
+            wp_update_plugins();
+        }
+        if (! get_site_transient('update_themes')) {
+            wp_update_themes();
+        }
 
         // Log what the transient contains for requested items
         $transient_debug = self::build_transient_debug($items);
